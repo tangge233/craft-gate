@@ -40,13 +40,14 @@ impl AppDaemon {
             if let Ok((mut stream, addr)) = listener.accept().await {
                 tracing::info!("Accept connection from {addr}");
 
-                if self.connection_limiter.is_limit_enabled()
+                let _c_limiter = if self.connection_limiter.is_limit_enabled()
                     && let Some(_c_limiter) =
                         self.connection_limiter.try_acquire(addr.ip().to_string())
                 {
+                    _c_limiter
                 } else {
                     continue;
-                }
+                };
 
                 let detection_readed = match stream.read(&mut buffer).await {
                     Ok(ret) => ret,
@@ -82,6 +83,7 @@ impl AppDaemon {
 
                 tracing::info!("Begin relay: {relay}");
                 _ = tokio::spawn(async move {
+                    let _limit_guard = _c_limiter;
                     let mut relay_service = relay;
                     _ = relay_service.relay().await;
                 });

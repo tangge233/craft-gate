@@ -2,17 +2,22 @@ use tokio::{io::AsyncReadExt, net::TcpListener};
 
 use crate::{
     errors::{Error, Result},
-    gate::relay::TcpRelayService,
+    gate::{limiter::Limiter, relay::TcpRelayService},
     state::AppState,
 };
 
 pub struct AppDaemon {
     app_state: AppState,
+    connection_limiter: Limiter,
 }
 
 impl AppDaemon {
     pub fn new(state: AppState) -> Self {
-        Self { app_state: state }
+        let ip_limit = state.config.ip_limit;
+        Self {
+            app_state: state,
+            connection_limiter: Limiter::new(ip_limit),
+        }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -34,6 +39,14 @@ impl AppDaemon {
         loop {
             if let Ok((mut stream, addr)) = listener.accept().await {
                 tracing::info!("Accept connection from {addr}");
+
+                if self.connection_limiter.is_limit_enabled()
+                    && let Some(_c_limiter) =
+                        self.connection_limiter.try_acquire(addr.ip().to_string())
+                {
+                } else {
+                    continue;
+                }
 
                 let detection_readed = match stream.read(&mut buffer).await {
                     Ok(ret) => ret,

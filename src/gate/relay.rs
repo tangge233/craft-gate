@@ -48,7 +48,7 @@ impl TcpRelayService {
     }
 
     /// 向 from 流发送数据
-    pub async fn send_to_from(&mut self, data: &[u8]) -> Result<()> {
+    pub async fn _send_to_from(&mut self, data: &[u8]) -> Result<()> {
         self.from.write_all(data).await.map_err(Error::IO)?;
         tracing::debug!("Sent {} bytes to from stream", data.len());
         Ok(())
@@ -62,14 +62,14 @@ impl TcpRelayService {
     }
 
     /// 从 from 流读取数据
-    pub async fn read_from_from(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub async fn _read_from_from(&mut self, buf: &mut [u8]) -> Result<usize> {
         let n = self.from.read(buf).await.map_err(Error::IO)?;
         tracing::debug!("Read {} bytes from from stream", n);
         Ok(n)
     }
 
     /// 从 to 流读取数据
-    pub async fn read_from_to(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub async fn _read_from_to(&mut self, buf: &mut [u8]) -> Result<usize> {
         let n = self.to.read(buf).await.map_err(Error::IO)?;
         tracing::debug!("Read {} bytes from to stream", n);
         Ok(n)

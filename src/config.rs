@@ -10,6 +10,7 @@ use crate::errors::{Error, Result};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub listen: Url,
+    pub ip_limit: usize,
     pub services: AppConfigService,
 }
 
@@ -17,6 +18,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
             listen: Url::parse("tcp://0.0.0.0:25565").unwrap(),
+            ip_limit: 64,
             services: AppConfigService::default(),
         }
     }

@@ -18,6 +18,7 @@ mod errors;
 mod state;
 mod gate {
     pub mod daemon;
+    pub mod limiter;
     pub mod relay;
 }
 

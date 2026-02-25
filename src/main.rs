@@ -83,7 +83,7 @@ async fn init_logger() -> Result<WorkerGuard> {
     let (non_block, guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .with_writer(std::io::stdout)
         .with_writer(non_block)
         .with_ansi(false)

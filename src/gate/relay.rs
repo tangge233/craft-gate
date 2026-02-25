@@ -31,47 +31,20 @@ impl TcpRelayService {
     }
 
     pub async fn relay(&mut self) -> Result<()> {
-        let (mut from_read, mut from_write) = self.from.split();
-        let (mut to_read, mut to_write) = self.to.split();
-
-        // from -> to
-        let forward_fut = async {
-            match io::copy(&mut from_read, &mut to_write).await {
-                Ok(bytes) => {
-                    tracing::debug!("Forwarded {} bytes", bytes);
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::error!("Forward error: {}", e);
-                    Err(Error::IO(e))
-                }
+        let session_id = &self.id;
+        let from = &mut self.from;
+        let to = &mut self.to;
+        tracing::info!("{session_id}: Begin relay {:?} <-> {:?}", from, to);
+        let (writed, readed) = match io::copy_bidirectional(from, to).await {
+            Ok(ret) => ret,
+            Err(e) => {
+                tracing::error!("{session_id}: Relay error: {e}");
+                return Err(Error::IO(e));
             }
         };
 
-        // to -> from
-        let backward_fut = async {
-            match io::copy(&mut to_read, &mut from_write).await {
-                Ok(bytes) => {
-                    tracing::debug!("Backward forwarded {} bytes", bytes);
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::error!("Backward error: {}", e);
-                    Err(Error::IO(e))
-                }
-            }
-        };
-
-        tokio::select! {
-            result = forward_fut => {
-                tracing::info!("Forward direction completed");
-                result
-            }
-            result = backward_fut => {
-                tracing::info!("Backward direction completed");
-                result
-            }
-        }
+        tracing::info!("{session_id}: End of relay, writed {writed} bytes, readed {readed} bytes");
+        Ok(())
     }
 
     /// 向 from 流发送数据

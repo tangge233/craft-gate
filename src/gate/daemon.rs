@@ -21,52 +21,56 @@ impl AppDaemon {
             tracing::error!("Unsupported protocol: {listen_sche}");
         }
 
-        let host = self
-            .app_state
-            .config
-            .listen
-            .host_str()
-            .ok_or(Error::InvalidUrl)?;
-        let port = self
-            .app_state
-            .config
-            .listen
-            .port()
-            .ok_or(Error::InvalidUrl)?;
-        let listener = TcpListener::bind((host, port)).await.map_err(Error::IO)?;
+        let listen = &self.app_state.config.listen;
+        let listen_host = listen.host_str().ok_or(Error::InvalidUrl)?;
+        let listen_port = listen.port().ok_or(Error::InvalidUrl)?;
+        let listener = TcpListener::bind((listen_host, listen_port))
+            .await
+            .map_err(Error::IO)?;
 
         let protocol_detector = guess::ProtocolChainBuilder::new().all_web().build();
 
         loop {
             if let Ok((mut stream, addr)) = listener.accept().await {
-                let mut buffer = [0u8; 7];
-                stream.read_exact(&mut buffer).await.unwrap();
-                let is_http_service =
-                    matches!(protocol_detector.detect(&buffer), Ok(p) if p.is_some());
+                tracing::info!("Accept connection from {addr}");
+                let mut buffer = [0u8; 16];
+
+                let detection_readed = match stream.read(&mut buffer).await {
+                    Ok(ret) => ret,
+                    Err(e) => {
+                        tracing::error!("{addr} read data fail: {e}");
+                        continue;
+                    }
+                };
+                tracing::debug!("Readed {detection_readed} bytes for protocol detection");
+                let detect_result = protocol_detector.detect(&buffer);
+                tracing::debug!("Detect result: {:?}", detect_result);
+                let is_http_service = matches!(detect_result, Ok(p) if p.is_some());
 
                 let dest = if is_http_service {
                     &self.app_state.config.services.http.dest
                 } else {
                     &self.app_state.config.services.minecraft.dest
                 };
+                tracing::debug!("Choose dest: {dest}");
 
                 let relay = match TcpRelayService::new(stream, dest).await {
                     Ok(mut o) => {
-                        if o.send_to_to(&buffer).await.is_err() {
+                        if o.send_to_to(&buffer[..detection_readed]).await.is_err() {
                             continue;
                         };
                         o
                     }
                     Err(e) => {
-                        tracing::error!("Failed to relay http service: from {addr}: {e}");
+                        tracing::error!("Failed to relay service: from {addr} to {dest}: {e}");
                         continue;
                     }
                 };
 
                 tracing::info!("Begin relay: {relay}");
-                _ = tokio::spawn(async {
+                _ = tokio::spawn(async move {
                     let mut relay_service = relay;
-                    relay_service.relay().await.unwrap();
+                    _ = relay_service.relay().await;
                 });
             }
         }

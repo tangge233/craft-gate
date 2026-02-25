@@ -61,7 +61,7 @@ pub struct AppConfigServiceMinecraft {
 impl Default for AppConfigServiceMinecraft {
     fn default() -> Self {
         AppConfigServiceMinecraft {
-            dest: Url::parse("tcp://127.0.0.1:25565").unwrap(),
+            dest: Url::parse("tcp://127.0.0.1:11451").unwrap(),
         }
     }
 }

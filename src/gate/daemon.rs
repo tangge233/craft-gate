@@ -30,10 +30,10 @@ impl AppDaemon {
 
         let protocol_detector = guess::ProtocolChainBuilder::new().all_web().build();
 
+        let mut buffer = [0u8; 256];
         loop {
             if let Ok((mut stream, addr)) = listener.accept().await {
                 tracing::info!("Accept connection from {addr}");
-                let mut buffer = [0u8; 16];
 
                 let detection_readed = match stream.read(&mut buffer).await {
                     Ok(ret) => ret,

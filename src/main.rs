@@ -3,8 +3,8 @@ use std::{path::PathBuf, sync::Arc};
 use chrono::Utc;
 use clap::Parser;
 use tokio::fs;
-use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 use crate::{
     config::AppConfig,
@@ -26,13 +26,20 @@ mod gate {
 struct Args {
     #[arg(long)]
     config_file: Option<PathBuf>,
+
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let logger_worker = init_logger().await?;
-
     let args = Args::parse();
+    let logger_worker = init_logger(if args.debug {
+        tracing::Level::DEBUG
+    } else {
+        tracing::Level::INFO
+    })
+    .await?;
 
     tracing::info!("App start!");
     tracing::info!("Reading config file...");
@@ -77,18 +84,22 @@ async fn get_cfg(config_file: PathBuf) -> Result<AppConfig> {
     Ok(ret)
 }
 
-async fn init_logger() -> Result<WorkerGuard> {
+async fn init_logger(logger_level: tracing::Level) -> Result<Vec<WorkerGuard>> {
+    // file
     let log_dir = PathBuf::from("craft-gate/logs");
     fs::create_dir_all(&log_dir).await.map_err(Error::IO)?;
     let file_appender = tracing_appender::rolling::daily(&log_dir, "");
     let (non_block, guard) = tracing_appender::non_blocking(file_appender);
 
+    // std
+    let (non_block_std, std_guard) = tracing_appender::non_blocking(std::io::stdout());
+
+    let writer = non_block_std.and(non_block);
     tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .with_writer(std::io::stdout)
-        .with_writer(non_block)
+        .with_max_level(logger_level)
+        .with_writer(writer)
         .with_ansi(false)
         .init();
 
-    Ok(guard)
+    Ok(vec![guard, std_guard])
 }

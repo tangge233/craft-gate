@@ -34,6 +34,7 @@ impl Limiter {
                 if current < self.inner.max_count {
                     *occ.get_mut() = current + 1;
                 } else {
+                    tracing::debug!("Limit reached for {key}");
                     return None;
                 }
             }
@@ -42,6 +43,7 @@ impl Limiter {
             }
         }
 
+        tracing::debug!("Limit increment for {key}");
         Some(LimiterGuard {
             limiter: self.inner.clone(),
             key,
@@ -57,6 +59,7 @@ pub struct LimiterGuard {
 impl Drop for LimiterGuard {
     fn drop(&mut self) {
         if let Some(mut entry) = self.limiter.counter.get_mut(&self.key) {
+            tracing::debug!("Limit decreament for {0}", &self.key);
             if *entry > 1 {
                 *entry -= 1;
             } else {
@@ -84,5 +87,11 @@ mod test {
         }
 
         assert!(limiter.try_acquire("1").is_none());
+
+        for item in cache {
+            drop(item);
+        }
+
+        assert!(limiter.try_acquire("1").is_some());
     }
 }

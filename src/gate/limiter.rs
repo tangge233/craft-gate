@@ -21,7 +21,7 @@ impl Limiter {
     }
 
     pub fn is_limit_enabled(&self) -> bool {
-        self.inner.max_count > 0
+        self.inner.max_count != 0
     }
 
     /// 尝试获取许可，成功返回 `Guard`，失败返回 `None`

@@ -13,10 +13,10 @@ pub struct AppDaemon {
 
 impl AppDaemon {
     pub fn new(state: AppState) -> Self {
-        let ip_limit = state.config.ip_limit;
+        let ip_limit = &state.config.clone().ip_limit;
         Self {
             app_state: state,
-            connection_limiter: Limiter::new(ip_limit),
+            connection_limiter: Limiter::new(if ip_limit.enable { ip_limit.limits } else { 0 }),
         }
     }
 

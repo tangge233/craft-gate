@@ -2,6 +2,8 @@
 name = "craft-gate"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/tangge233/craft-gate"
+authors = ["tangge233 <contact@tangge233.top>"]
 
 [dependencies]
 anyhow = "1.0.102"

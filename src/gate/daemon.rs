@@ -1,6 +1,7 @@
 use tokio::{io::AsyncReadExt, net::TcpListener};
 
 use crate::{
+    detector::{ProtocolType, detect_protocol},
     errors::{Error, Result},
     gate::{limiter::Limiter, relay::TcpRelayService},
     state::AppState,
@@ -55,16 +56,10 @@ impl AppDaemon {
                     }
                 };
                 tracing::debug!("Readed {detection_readed} bytes for protocol detection");
-                let detect_result = guess::classify(&buffer);
+                let detect_result = detect_protocol(&buffer);
                 tracing::debug!("Detect result: {:?}", detect_result);
-                let is_http_service = matches!(
-                    detect_result
-                        .detected
-                        .unwrap_or_else(|| guess::DetectedProtocol::Unknown),
-                    guess::DetectedProtocol::Http1
-                        | guess::DetectedProtocol::Http2Preface
-                        | guess::DetectedProtocol::TlsClientHello
-                );
+                let is_http_service =
+                    matches!(detect_result, ProtocolType::RawHttp | ProtocolType::Tls);
 
                 let dest = if is_http_service {
                     &self.app_state.config.services.http.dest

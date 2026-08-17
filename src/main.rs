@@ -14,6 +14,7 @@ use crate::{
 };
 
 mod config;
+mod detector;
 mod errors;
 mod state;
 mod gate {

@@ -33,8 +33,6 @@ impl AppDaemon {
             .await
             .map_err(Error::IO)?;
 
-        let protocol_detector = guess::ProtocolChainBuilder::new().all_web().build();
-
         let mut buffer = [0u8; 256];
         loop {
             if let Ok((mut stream, addr)) = listener.accept().await {
@@ -57,9 +55,16 @@ impl AppDaemon {
                     }
                 };
                 tracing::debug!("Readed {detection_readed} bytes for protocol detection");
-                let detect_result = protocol_detector.detect(&buffer);
+                let detect_result = guess::classify(&buffer);
                 tracing::debug!("Detect result: {:?}", detect_result);
-                let is_http_service = matches!(detect_result, Ok(p) if p.is_some());
+                let is_http_service = matches!(
+                    detect_result
+                        .detected
+                        .unwrap_or_else(|| guess::DetectedProtocol::Unknown),
+                    guess::DetectedProtocol::Http1
+                        | guess::DetectedProtocol::Http2Preface
+                        | guess::DetectedProtocol::TlsClientHello
+                );
 
                 let dest = if is_http_service {
                     &self.app_state.config.services.http.dest
